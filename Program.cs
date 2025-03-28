@@ -10,6 +10,16 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddHttpClient(
+    "NYT",
+    client =>
+    {
+        // Set the base address of the named client.
+        client.BaseAddress = new Uri("https://www.nytimes.com/svc/connections/v1/");
+});
+
+builder.Services.AddSingleton<INYTService, NYTService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

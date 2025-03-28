@@ -1,0 +1,20 @@
+﻿@page "/"
+
+<PageTitle>BlazorConnections</PageTitle>
+
+<MudPaper Height="85vh">
+    <MudText Typo="Typo.h1">Connections</MudText>
+    <MudDivider DividerType="DividerType.Middle" Class="my-6"/>
+    <MudContainer Class="d-flex flex-row justify-center align-start">
+        <MudGrid Spacing="3" Style="max-width: 40%;">
+            @for(int i = 0; i < 12; i++)
+            {
+                <MudItem xs="3">
+                    <MudPaper Class="border-solid border-2 mud-border-primary pa-4 d-flex justify-center align-center" Style="height: 4em">
+                        AAA
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
+</MudPaper>

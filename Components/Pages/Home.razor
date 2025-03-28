@@ -3,18 +3,149 @@
 <PageTitle>BlazorConnections</PageTitle>
 
 <MudPaper Height="85vh">
-    <MudText Typo="Typo.h1">Connections</MudText>
+    <MudContainer Class="pt-2">
+        <MudText Class="title">Connections</MudText>
+    </MudContainer>
     <MudDivider DividerType="DividerType.Middle" Class="my-6"/>
-    <MudContainer Class="d-flex flex-row justify-center align-start">
-        <MudGrid Spacing="3" Style="max-width: 40%;">
-            @for(int i = 0; i < 12; i++)
+    <MudContainer Class="d-flex flex-row justify-center align-start" Style="height: 60%">        
+        <MudStack>
+            @if(wordCards is null)
             {
-                <MudItem xs="3">
-                    <MudPaper Class="border-solid border-2 mud-border-primary pa-4 d-flex justify-center align-center" Style="height: 4em">
-                        AAA
-                    </MudPaper>
-                </MudItem>
+                <MudContainer Class="d-flex justify-center align-center">
+                    <MudProgressCircular Color="Color.Dark" Indeterminate="true" />
+                </MudContainer>
             }
-        </MudGrid>
+            else
+            {
+                <MudGrid Spacing="3">
+                    @foreach(var wordCard in wordCards)
+                    {
+                        string paperClass = "rounded pa-4 d-flex justify-center align-center wordCard" 
+                                                + (FourWordsSelected ? (wordCard.IsSelected ? " cursor-pointer" : "") : " cursor-pointer") //Determine if word has pointer cursor on hover
+                                                + (wordCard.IsSelected ? " selected" : ""); //Determine if word has selected stylings
+
+                        <MudItem xs="3" Style="height: 8em">
+                            <MudPaper Elevation="0" Class="@paperClass" @onclick="() => SelectWord(wordCard.Id)">
+                                @wordCard.Word
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>    
+            }
+            <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
+                <MudText>Mistakes Remaining: </MudText>
+                @for(int i = 0; i < 4; i++)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
+                }
+            </MudContainer>
+            <MudContainer Class="d-flex flex-row justify-center align-start gap-2">
+                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
+                <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll">Deselect All</MudButton>
+                <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled=!FourWordsSelected>Submit</MudButton>
+            </MudContainer>
+        </MudStack>
     </MudContainer>
 </MudPaper>
+
+<style>
+    .title{
+        font-family: "nyt-karnakcondensed";
+        font-size: 42px;
+        font-weight: 700;
+    }
+    .wordCard{
+        height: 100%;
+        background-color: #efefe6;
+        color: #121212; 
+        font-family: "nyt-franklin", Arial;
+        font-size: 20pt; 
+        font-weight: 700;
+        text-transform: uppercase;
+        transition: 0.2s all;
+    }
+
+    .wordCard.selected{
+        background-color: #5a594e;
+        color: #f8f8f8;
+    }
+</style>
+
+@code{
+
+    private List<WordCard> wordCards { get; set; }
+    private bool FourWordsSelected => wordCards.Count(x => x.IsSelected) >= 4;
+
+    private class WordCard
+    {
+        public Guid Id = Guid.CreateVersion7();
+        public string Word;
+        public bool IsSelected;
+    }
+
+    //Temp for testing, remove
+    private static Random random = new Random();
+    public static string RandomString(int length)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        wordCards = new List<WordCard>();
+
+        for(int i = 0; i < 16; i++)
+        {
+            wordCards.Add(new WordCard
+            {
+                Word = RandomString(5),
+                IsSelected = false
+            });
+        }
+        StateHasChanged();
+    }
+
+    private void SelectWord(Guid id)
+    {
+        var selectedWord = wordCards.FirstOrDefault(x => x.Id == id);
+
+        if(selectedWord is null)
+        {
+            return;
+        }
+
+        //Don't allow selection if 4 or more words are already selected and not deselecting
+        if(FourWordsSelected && !selectedWord.IsSelected)
+        {
+            return;
+        }
+
+        selectedWord.IsSelected = !selectedWord.IsSelected;
+
+        StateHasChanged();
+    }
+
+    private void DeselectAll()
+    {
+        wordCards.ForEach(x => x.IsSelected = false);
+
+        StateHasChanged();
+    }
+
+    private void Shuffle()
+    {
+        int n = wordCards.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = random.Next(n + 1);
+            WordCard value = wordCards[k];
+            wordCards[k] = wordCards[n];
+            wordCards[n] = value;
+        }
+
+        StateHasChanged();
+    }
+}

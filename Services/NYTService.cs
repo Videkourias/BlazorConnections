@@ -36,7 +36,7 @@ public class NYTService : INYTService
                 return connection;
             }
 
-            connection = new NYTConnection(rawConnection);
+            connection = NYTConnection.FromDeSerialized(rawConnection);
         }
         catch(Exception ex)
         {

@@ -1,5 +1,7 @@
 using Newtonsoft.Json;
 
+
+//TODO: Add method to verify return has 4 groups, 4 words each
 public class NYTConnectionDeserialized
 {
     [JsonProperty("id")]

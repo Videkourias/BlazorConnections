@@ -38,6 +38,7 @@ public class NYTConnection
         });
 
         wordGroup.Completed = true;
+        wordGroup.TimeCompleted = TimeOnly.FromDateTime(DateTime.UtcNow);
         return true;
     }
 
@@ -71,6 +72,7 @@ public class WordGroup
 {
     public string? GroupName { get; set; }
     public bool Completed { get; set; } = false;
+    public TimeOnly TimeCompleted { get; set; }
     public Difficulty Difficulty { get; set; }
     public List<Word> Words { get; set; }
 }

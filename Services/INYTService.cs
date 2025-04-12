@@ -1,4 +1,4 @@
 public interface INYTService
 {
-    public Task<NYTConnection> GetNYTConnection(DateOnly date);
+    public Task<Connection> GetConnection(DateOnly date);
 }

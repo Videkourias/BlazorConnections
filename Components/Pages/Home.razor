@@ -3,103 +3,105 @@
 
 <PageTitle>BlazorConnections</PageTitle>
 
-<MudPaper Height="85vh">
+<MudPaper Height="85vh" Elevation="0">
     <MudContainer Class="pt-2">
         <MudContainer Class="d-flex gap-4 align-center">
             <MudText Class="title">Connections</MudText>
-            <MudDatePicker Label="Game Date" @bind-Date="ConnectionDate" @bind-Date:after="ConnectionDateUpdate" />
+            <MudDatePicker Label="Game Date" @bind-Date="ConnectionDate" @bind-Date:after="ConnectionDateUpdate" IsDateDisabledFunc="@((DateTime dt)=>(dt < new DateTime(2023, 6, 12) || DateOnly.FromDateTime(dt) > DateOnly.FromDateTime(DateTime.Now.AddDays(1))))"/>
         </MudContainer>
     </MudContainer>
     <MudDivider DividerType="DividerType.Middle" Class="my-6"/>
     <MudContainer Class="d-flex flex-row justify-center align-start" Style="height: 60%"> 
-        @if(!HasWon && Chances != 0) //Only show game if player hasn't one or lost
+        @if(Connection is not null) 
         {
-        <MudStack>
-            @if(Connection is null)
-            {
-                <MudContainer Class="d-flex justify-center align-center">
-                    <MudProgressCircular Color="Color.Dark" Indeterminate="true" />
-                </MudContainer>
-            }
-            else
-            {                
-                <MudGrid Spacing="3">
-                    <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["AlreadyGuessed"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 hint" Square="false" DropShadow="false">
-                        <p>Already guessed!</p>
-                    </MudPopover>
-                    @* TODO: Remove this and change to using animation on incorrect word cards. May need JS interop *@
-                    <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["Incorrect"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 hint" Square="false" DropShadow="false"> 
-                        <p>Incorrect!</p>
-                    </MudPopover>
-                    <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["OneOff"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 hint" Square="false" DropShadow="false">
-                        <p>One Off!</p>
-                    </MudPopover>
-
-                    
-                    @foreach(var wordGroup in Connection.Groups.Where(x => x.Completed).OrderBy(x => x.TimeCompleted)) //Display already completed groups
-                    {
-                        string style = "background-color: " + wordGroup.Difficulty switch
-                        {
-                            Difficulty.Yellow => "rgb(249, 223, 109)",
-                            Difficulty.Green => "rgb(160, 195, 90)",   
-                            Difficulty.Blue => "rgb(176, 196, 239)",
-                            Difficulty.Purple => "rgb(186, 129, 197)",
-                            _ => ""
-                        };
-                        <MudItem xs="12" Style="height: 8em">
-                            <MudPaper Elevation="0" Class="rounded pa-4 d-flex justify-center align-center wordCard" Style=@style>
-                                <MudStack Spacing="0" AlignItems="AlignItems.Center">
-                                    <MudText Class="correctWordCategory">@wordGroup.GroupName</MudText>
-                                    <MudStack Row Justify="Justify.Center">
-                                        @{
-                                            var lastWord = wordGroup.Words.Last();
-                                        } 
-                                        @foreach(var word in wordGroup.Words)
-                                        {
-                                            <MudText Class="correctWord" Style="">@word.Value@(word.Equals(lastWord) ? "" : ",")</MudText>
-                                        }
-                                    </MudStack>
-                                </MudStack>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                
-                    @foreach(var word in Connection.WordList) //Display non-matched words
-                    {
-                        string paperClass = "rounded pa-4 d-flex justify-center align-center wordCard" 
-                                                + (FourWordsSelected ? (word.IsSelected ? " cursor-pointer" : "") : " cursor-pointer") //Determine if word has pointer cursor on hover
-                                                + (word.IsSelected ? " selected" : ""); //Determine if word has selected stylings
-
-                        <MudItem xs="3" Style="height: 8em">
-                            <MudPaper Elevation="0" Class="@paperClass" @onclick="() => SelectWord(word.Value)">
-                                <MudText Class="noSelect wordCardText">@word.Value</MudText>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                    
-                </MudGrid>    
-            }
-            <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
-                <MudText>Mistakes Remaining: </MudText>
-                @for(int i = 0; i < Chances; i++)
+                @if(Connection.HasWon)
                 {
-                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
+                    <MudText Typo="Typo.h1">You won!</MudText>
+                    <MudText Typo="Typo.h1">Congratulations!</MudText>
                 }
-            </MudContainer>
-            <MudContainer Class="d-flex flex-row justify-center align-start gap-2">
-                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
-                <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll">Deselect All</MudButton>
-                <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled=!FourWordsSelected OnClick="Submit">Submit</MudButton>
-            </MudContainer>
-        </MudStack>
+                else if(Connection.Chances == 0)
+                {
+                    <MudText Typo="Typo.h1">You lost!</MudText>
+                }
+                else
+                {            
+                    <MudStack>
+                        <MudContainer Class="d-flex justify-center align-center">
+                            <h2>Create four groups of four!</h2>
+                        </MudContainer>   
+                        <MudGrid Spacing="3">
+                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["AlreadyGuessed"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false">
+                                <p>Already guessed!</p>
+                            </MudPopover>
+                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["Incorrect"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false"> 
+                                <p>Incorrect!</p>
+                            </MudPopover>
+                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["OneOff"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false">
+                                <p>One Off!</p>
+                            </MudPopover>
+
+                            
+                            @foreach(var wordGroup in Connection.Groups.Where(x => x.Completed).OrderBy(x => x.TimeCompleted)) //Display already completed groups
+                            {
+                                string style = "background-color: " + wordGroup.Difficulty switch
+                                {
+                                    Difficulty.Yellow => "rgb(249, 223, 109)",
+                                    Difficulty.Green => "rgb(160, 195, 90)",   
+                                    Difficulty.Blue => "rgb(176, 196, 239)",
+                                    Difficulty.Purple => "rgb(186, 129, 197)",
+                                    _ => ""
+                                };
+                                <MudItem xs="12" Style="height: 8em">
+                                    <MudPaper Elevation="0" Class="rounded pa-4 d-flex justify-center align-center wordCard" Style=@style>
+                                        <MudStack Spacing="0" AlignItems="AlignItems.Center">
+                                            <MudText Class="correctWordCategory nytArial">@wordGroup.GroupName</MudText>
+                                            <MudStack Row Justify="Justify.Center" Spacing="1">
+                                                @{
+                                                    var lastWord = wordGroup.Words.Last();
+                                                } 
+                                                @foreach(var word in wordGroup.Words)
+                                                {
+                                                    <MudText Class="correctWord nytArial" Style="">@word.Value@(word.Equals(lastWord) ? "" : ",")</MudText>
+                                                }
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        
+                            @foreach(var word in Connection.WordList) //Display non-matched words
+                            {
+                                string paperClass = "rounded pa-4 d-flex justify-center align-center wordCard" 
+                                                        + (Connection.FourWordsSelected ? (word.IsSelected ? " cursor-pointer" : "") : " cursor-pointer") //Determine if word has pointer cursor on hover
+                                                        + (word.IsSelected ? " selected" : ""); //Determine if word has selected stylings
+
+                                <MudItem xs="3" Style="height: 8em">
+                                    <MudPaper Elevation="0" Class="@paperClass" @onclick="() => SelectWord(word.Value)">
+                                        <MudText Class="noSelect wordCardText nytArial">@word.Value</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                            
+                        </MudGrid>  
+                        <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
+                        <MudText>Mistakes Remaining: </MudText>
+                        @for(int i = 0; i < Connection.Chances; i++)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
+                        }
+                        </MudContainer>
+                        <MudContainer Class="d-flex flex-row justify-center align-start gap-2">
+                            <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
+                            <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll">Deselect All</MudButton>
+                            <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled="!Connection.FourWordsSelected || DisableSubmit" OnClick="Submit">Submit</MudButton>
+                        </MudContainer>  
+                    </MudStack>
+                }
+                
         }
-        else if(HasWon) //Win screen
+        else
         {
-            <MudText Typo="Typo.h1">You win!</MudText>
-        }
-        else if(Chances == 0) //Lose screen
-        {
-            <MudText Typo="Typo.h1">You lose!</MudText>
+            <MudText>Select a date to play!</MudText>
         }
     </MudContainer>
 </MudPaper>
@@ -110,6 +112,7 @@
         font-size: 42px;
         font-weight: 700;
     }
+
     .wordCard{
         height: 100%;
         background-color: #efefe6;
@@ -123,35 +126,29 @@
     }
 
     .wordCard .wordCardText{
-        font-family: "nyt-franklin", Arial;
         font-size: 20pt; 
         font-weight: 700;
         text-transform: uppercase;
     }
 
 
-    .hint{
-        @* transition: 0.2s all; *@
+    .popoverHint{
         background-color: #1d1d1e;
-        @* position: relative;
-        left: 34.5em;
-        top: 8em; *@
         color: white;
-        @* border-radius: 5px;
-        padding: 0.6em;
-        width: 9em; *@
+    }
+
+    .nytArial{
+        font-family: "nyt-franklin", Arial;
     }
 
     .correctWord{
         font-weight: 500;
         font-size: 20px;
-        font-family: "nyt-franklin", Arial;
     }
 
     .correctWordCategory{
         font-weight: 700;
         font-size: 20px;
-        font-family: "nyt-franklin", Arial;
     }
 
     .noSelect {
@@ -167,16 +164,15 @@
 
 @code{
 
-    private NYTConnection Connection { get; set; }
+    private Connection Connection { get; set; }
     private DateTime? ConnectionDate { get; set; } = DateTime.Now;
-    private bool FourWordsSelected => Connection?.WordList.Count(x => x.IsSelected) >= 4;
-    private int Chances { get; set; } = 4;
+    private bool DisableSubmit = false;
+    
+    
     private HashSet<string> AttemptedCombinations { get; set; } = new();
+    private List<string> DifficultyGuesses { get; set; } = new();
 
-    private bool IncorrectHint { get; set; } = false;
-    private bool AlreadyGuessedHint { get; set; } = false;
-    private bool OneOffHint { get; set; } = false;
-    private bool HasWon { get; set; } = false;
+    
     private Dictionary<string, bool> PopoverHints = new Dictionary<string, bool>
     {
         {"Incorrect", false},
@@ -184,7 +180,7 @@
         {"OneOff", false}
     };
 
-    //May want to switch to non prerendering, this adds noticeable delay
+    //May want to switch to non prerendering, this adds noticeable delay    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if(!firstRender)
@@ -192,14 +188,31 @@
             return;
         }
 
-        DateOnly gameDate = ConnectionDate.HasValue ? DateOnly.FromDateTime((DateTime)ConnectionDate) : DateOnly.FromDateTime(DateTime.Now);
-
-        Connection = await _nytService.GetNYTConnection(gameDate);
+        await GetConnection();
         StateHasChanged();
+    }
+
+    private async Task GetConnection()
+    {
+        if(ConnectionDate is null)
+        {
+            return;
+        }
+
+        //Get game date from date picker, or default to today's date
+        Connection = await _nytService.GetConnection(DateOnly.FromDateTime((DateTime)ConnectionDate));
+
+        if(Connection == null)
+        {
+            //FailedToGetConnection = true;
+            return;
+        }
     }
 
     private void SelectWord(string word)
     {
+        DisableSubmit = false; //Allow submission again
+        
         var selectedWord = Connection.Groups.SelectMany(x => x.Words).FirstOrDefault(x => x.Value == word);
 
         if(selectedWord is null)
@@ -208,7 +221,7 @@
         }
 
         //Don't allow selection if 4 or more words are already selected and not deselecting
-        if(FourWordsSelected && !selectedWord.IsSelected)
+        if(Connection.FourWordsSelected && !selectedWord.IsSelected)
         {
             return;
         }
@@ -233,6 +246,8 @@
 
     public void Submit()
     {
+        DisableSubmit = true; //Prevent double submission
+
         var selectedWords = Connection.WordList.Where(x => x.IsSelected);
 
         string key = string.Join("", selectedWords.Select(x => x.Value).OrderByDescending(x => x)); //Unique key for word combination
@@ -272,12 +287,6 @@
             {
                 Connection.MarkGroupComplete((Difficulty)kv.Key);
                 StateHasChanged();
-
-                //Check for win condition
-                if(Connection.WordList.Count == 0)
-                {
-                    HasWon = true;
-                }
                 return;
             }
             else if(kv.Value == 3) //One off, display hint
@@ -293,7 +302,7 @@
             FlashHint("Incorrect");
         }
             
-        Chances -= 1;
+        Connection.Chances -= 1;
 
         StateHasChanged();
     }
@@ -312,10 +321,7 @@
 
     async Task ConnectionDateUpdate()
     {
-        DateOnly gameDate = ConnectionDate.HasValue ? DateOnly.FromDateTime((DateTime)ConnectionDate) : DateOnly.FromDateTime(DateTime.Now);
-
-        Connection = await _nytService.GetNYTConnection(gameDate);
-        Chances = 4;
+        await GetConnection();
         StateHasChanged();
     }
 }

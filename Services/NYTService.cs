@@ -12,9 +12,17 @@ public class NYTService : INYTService
         _logger = logger;
     }
 
-    public async Task<NYTConnection> GetNYTConnection(DateOnly date)
+    public async Task<Connection> GetConnection(DateOnly date)
     {
-        NYTConnection connection = null!;
+        Connection connection = null!;
+
+        // Check if the date is within the valid range (June 12, 2023 to tomorrow)
+        if(date < new DateOnly(2023, 6, 12) || date > DateOnly.FromDateTime(DateTime.Now.AddDays(1)))
+        {
+            _logger.LogWarning("NYT connection date is out of range: {Date}", date);
+            return null;
+        }
+
         using HttpClient client = _httpClientFactory.CreateClient("NYT");
         try
         {
@@ -26,17 +34,19 @@ public class NYTService : INYTService
 
             if(rawConnectionJSON is null)
             {
+                _logger.LogError("Failed to read raw Connection JSON from response.");
                 return connection;
             }
 
-            NYTConnectionDeserialized rawConnection = JsonConvert.DeserializeObject<NYTConnectionDeserialized>(rawConnectionJSON);
+            NYTConnection? rawConnection = JsonConvert.DeserializeObject<NYTConnection>(rawConnectionJSON);
 
             if(rawConnection is null)
             {
+                _logger.LogError("Failed to deserialize raw Connection JSON.");
                 return connection;
             }
 
-            connection = NYTConnection.FromDeSerialized(rawConnection);
+            connection = Connection.FromNYTConnection(rawConnection);
         }
         catch(Exception ex)
         {

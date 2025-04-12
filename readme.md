@@ -5,6 +5,7 @@ BlazorConnections is a replica of the NYT Connections daily game built using Bla
 ## Features
 
 - **Date Selector**: Navigate to any valid date to play the NYT Connection of that day.
+- **NYT Connection API**: Uses NYT Connection's api to get exact game data based on date chosen
 
 
 ## Getting Started
@@ -33,4 +34,3 @@ BlazorConnections is a replica of the NYT Connections daily game built using Bla
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-

@@ -1,0 +1,5 @@
+- Remove 'Incorrect' popover notification, replace with wiggle animation instead
+- Make sure multiple notifications don't overlap
+- On correct guess, bounce the correct word cards, then move them to topmost row, then show correct words card
+- Finish win and lose screens
+- Save current game progress in cookies?

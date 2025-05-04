@@ -31,10 +31,10 @@ BlazorConnections is a replica of the NYT Connections daily game built using Bla
 
 ## Screenshots
 
-![image](https://github.com/Videkourias/BlazorConnections/tree/master/readme_resources/connection_screenshot_1.png)
-![image](https://github.com/Videkourias/BlazorConnections/tree/master/readme_resources/connection_screenshot_2.png)
-![image](https://github.com/Videkourias/BlazorConnections/tree/master/readme_resources/connection_screenshot_3.png)
-![image](https://github.com/Videkourias/BlazorConnections/tree/master/readme_resources/connection_screenshot_4.png)
+![image](readme_resources/connection_screenshot_1.png)
+![image](readme_resources/connection_screenshot_2.png)
+![image](readme_resources/connection_screenshot_3.png)
+![image](readme_resources/connection_screenshot_4.png)
 
 ## License
 

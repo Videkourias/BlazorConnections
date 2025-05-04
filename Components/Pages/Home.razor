@@ -11,17 +11,38 @@
         </MudContainer>
     </MudContainer>
     <MudDivider DividerType="DividerType.Middle" Class="my-6"/>
-    <MudContainer Class="d-flex flex-row justify-center align-start" Style="height: 60%"> 
+ 
+    <MudContainer Class="d-flex flex-column justify-start align-center" Style="height: 60%"> 
         @if(Connection is not null) 
         {
-                @if(Connection.HasWon)
+                @if(IsGameOver && !IsFinishedConnectionShown)
                 {
-                    <MudText Typo="Typo.h1">You won!</MudText>
-                    <MudText Typo="Typo.h1">Congratulations!</MudText>
-                }
-                else if(Connection.Chances == 0)
-                {
-                    <MudText Typo="Typo.h1">You lost!</MudText>
+                    <MudButton Variant="Variant.Text" Class="rounded-pill" OnClick="() => IsFinishedConnectionShown = true" EndIcon="@Icons.Material.Filled.Close" Style="align-self: flex-end;">Back to puzzle</MudButton>
+                    <MudStack>
+                        <MudText Typo="Typo.h1">@Connection.GetCompletionMessage()!</MudText>
+                        <MudContainer style="max-width: 12em;">
+                            <MudGrid Spacing="1" Justify="Justify.Center">
+                                @foreach(var guess in Guesses)
+                                {
+                                    foreach(var word in guess.Words)
+                                    {
+                                        string style = "width: 2em; height:2em; background-color: " + word.Item2 switch
+                                        {
+                                            Difficulty.Yellow => "rgb(249, 223, 109)",
+                                            Difficulty.Green => "rgb(160, 195, 90)",   
+                                            Difficulty.Blue => "rgb(176, 196, 239)",
+                                            Difficulty.Purple => "rgb(186, 129, 197)",
+                                            _ => ""
+                                        };
+                                        <MudItem xs="3">
+                                            <MudPaper Elevation="0" Style=@style>
+                                            </MudPaper>
+                                        </MudItem>
+                                    }
+                                }
+                            </MudGrid>
+                        </MudContainer>
+                    </MudStack>
                 }
                 else
                 {            
@@ -30,17 +51,10 @@
                             <h2>Create four groups of four!</h2>
                         </MudContainer>   
                         <MudGrid Spacing="3">
-                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["AlreadyGuessed"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false">
-                                <p>Already guessed!</p>
-                            </MudPopover>
-                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["Incorrect"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false"> 
-                                <p>Incorrect!</p>
-                            </MudPopover>
-                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@PopoverHints["OneOff"]" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false">
-                                <p>One Off!</p>
+                            <MudPopover OverflowBehavior="OverflowBehavior.FlipNever" Open="@IsPopoverOpen" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter" Class="pa-2 popoverHint" Square="false" DropShadow="false">
+                                <p>@PopoverMessage</p>
                             </MudPopover>
 
-                            
                             @foreach(var wordGroup in Connection.Groups.Where(x => x.Completed).OrderBy(x => x.TimeCompleted)) //Display already completed groups
                             {
                                 string style = "background-color: " + wordGroup.Difficulty switch
@@ -83,17 +97,27 @@
                             }
                             
                         </MudGrid>  
-                        <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
-                        <MudText>Mistakes Remaining: </MudText>
-                        @for(int i = 0; i < Connection.Chances; i++)
+                        @if(!IsGameOver)
                         {
-                            <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
+                            <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
+                            <MudText>Mistakes Remaining: </MudText>
+                                @for(int i = 0; i < Connection.Chances; i++)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
+                                }
+                            </MudContainer>
                         }
-                        </MudContainer>
                         <MudContainer Class="d-flex flex-row justify-center align-start gap-2">
-                            <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
-                            <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll">Deselect All</MudButton>
-                            <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled="!Connection.FourWordsSelected || DisableSubmit" OnClick="Submit">Submit</MudButton>
+                            @if(IsGameOver)
+                            {
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="() => IsFinishedConnectionShown = false">View Results</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll" Disabled="!Connection.AnySelected">Deselect All</MudButton>
+                                <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled="!Connection.FourWordsSelected || SubmitDisabled" OnClick="Submit">Submit</MudButton>
+                            }
                         </MudContainer>  
                     </MudStack>
                 }
@@ -166,19 +190,16 @@
 
     private Connection Connection { get; set; }
     private DateTime? ConnectionDate { get; set; } = DateTime.Now;
-    private bool DisableSubmit = false;
+    private bool SubmitDisabled = false;
     
-    
-    private HashSet<string> AttemptedCombinations { get; set; } = new();
-    private List<string> DifficultyGuesses { get; set; } = new();
+    private List<Guess> Guesses { get; set; } = new();
 
-    
-    private Dictionary<string, bool> PopoverHints = new Dictionary<string, bool>
-    {
-        {"Incorrect", false},
-        {"AlreadyGuessed", false},
-        {"OneOff", false}
-    };
+    private string PopoverMessage {get; set; } = string.Empty;
+    private bool IsPopoverOpen { get; set; } = false;
+    private bool IsFinishedConnectionShown = false; //Used to determine if user is viewing the finished connection after win/lose screen
+    private bool IsGameOver = false;
+
+
 
     //May want to switch to non prerendering, this adds noticeable delay    
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -211,7 +232,7 @@
 
     private void SelectWord(string word)
     {
-        DisableSubmit = false; //Allow submission again
+        SubmitDisabled = false; //Allow submission again
         
         var selectedWord = Connection.Groups.SelectMany(x => x.Words).FirstOrDefault(x => x.Value == word);
 
@@ -220,8 +241,8 @@
             return;
         }
 
-        //Don't allow selection if 4 or more words are already selected and not deselecting
-        if(Connection.FourWordsSelected && !selectedWord.IsSelected)
+        //Don't allow selection if 4 or more words are already selected and not deselecting (Also don't allow selection if game is over)
+        if(Connection.FourWordsSelected && !selectedWord.IsSelected || IsGameOver)
         {
             return;
         }
@@ -244,76 +265,85 @@
         StateHasChanged();
     }
 
-    public void Submit()
+    public async void Submit()
     {
-        DisableSubmit = true; //Prevent double submission
+        SubmitDisabled = true; //Prevent double submission
 
         var selectedWords = Connection.WordList.Where(x => x.IsSelected);
 
-        string key = string.Join("", selectedWords.Select(x => x.Value).OrderByDescending(x => x)); //Unique key for word combination
+        Guess guess = Guess.FromWords(selectedWords);
 
         //Verify if words have already been guessed
-        if(AttemptedCombinations.Contains(key))
+        if(Guesses.Contains(guess))
         {
             //Show attempted warning
-            FlashHint("AlreadyGuessed");
+            FlashHint("Already Guessed!");
             return;
         }
-        AttemptedCombinations.Add(key);
 
-        //Check how many words are in each group
-        Dictionary<int, int> counts = new Dictionary<int, int>
+        //Add guess to list of guesses for this connection
+        Guesses.Add(guess);
+
+
+        if(guess.IsCorrect) 
         {
-            {0, 0},
-            {1, 0},
-            {2, 0},
-            {3, 0}
-        };
+            Connection.MarkGroupComplete(guess.Difficulty);
 
-        //Get currently selected words
-        foreach(var word in selectedWords)
-        {
-            int difficulty = (int)word.Difficulty;
+            StateHasChanged();
 
-            counts[difficulty]++;
-        }
-
-
-
-        bool oneOff = false;
-        foreach(var kv in counts)
-        {
-            if(kv.Value == 4) //Successful guess, remove that word group from puzzle
+            if(Connection.HasWon)
             {
-                Connection.MarkGroupComplete((Difficulty)kv.Key);
+                await Task.Delay(2000); //Delay to allow user to see correct guess
+                IsGameOver = true;
                 StateHasChanged();
-                return;
             }
-            else if(kv.Value == 3) //One off, display hint
-            {
-                FlashHint("OneOff");
-                oneOff = true;
-            }
-        }
 
-        //Add list of words to store of guessed words + remove one from allowed mistakes
-        if(!oneOff)
+            return;
+        }
+        else if(guess.IsOneOff)
+        {
+            FlashHint("One Off!");
+        }
+        else
         {
             FlashHint("Incorrect");
         }
-            
-        Connection.Chances -= 1;
 
+        Connection.Chances -= 1;
         StateHasChanged();
+
+
+        if(Connection.HasLost)
+        {
+            await Task.Delay(1000); //Delay to allow user to see incorrect guess
+
+            //Deselect all words
+            Connection.Groups.SelectMany(x => x.Words).ToList().ForEach(x => x.IsSelected = false);
+            StateHasChanged();
+
+            //Reveal answers
+            foreach(var difficulty in Connection.Groups.Select(x => x.Difficulty).Distinct().OrderByDescending(x => x))
+            {
+                Connection.MarkGroupComplete(difficulty);
+                StateHasChanged();
+                await Task.Delay(2000);
+            }
+
+            IsGameOver = true;
+            StateHasChanged();
+        }
+
     }
 
-    async void FlashHint(string hintKey)
+    async void FlashHint(string hintMessage)
     {
-        PopoverHints[hintKey] = true;
+        PopoverMessage = hintMessage;
+        IsPopoverOpen = true;
 
         await Task.Delay(3000);
 
-        PopoverHints[hintKey] = false;
+        IsPopoverOpen = false;
+        PopoverMessage = string.Empty;
 
         StateHasChanged();
     }
@@ -321,7 +351,51 @@
 
     async Task ConnectionDateUpdate()
     {
+        Guesses.Clear();
+        IsGameOver = false;
+        IsFinishedConnectionShown = false;
+
+        
         await GetConnection();
         StateHasChanged();
+    }
+
+
+    internal sealed class Guess : IEquatable<Guess>
+    {
+        public List<Tuple<string, Difficulty>> Words { get; set; } = new(); //Actual order as guessed by user
+        private List<Tuple<string, Difficulty>> WordsOrdered => Words.OrderBy(x => x.Item1).ToList(); //Guesses sorted alphabetically for comparison
+        public bool IsCorrect => Words.Select(x => x.Item2).Distinct().Count() == 1; //Guess is correct if all words share the same difficulty
+        public bool IsOneOff => Words.GroupBy(x => x.Item2).Any(x => x.Count() == 3); 
+        public Difficulty Difficulty => Words.First().Item2; //Difficulty of the guess is the first word's difficulty
+
+
+        public static Guess FromWords(IEnumerable<Word> words)
+        {
+            var guess = new Guess();
+            foreach(var word in words)
+            {
+                guess.Words.Add(new Tuple<string, Difficulty>(word.Value, word.Difficulty));
+            }
+            return guess;
+        }
+        
+        public bool Equals(Guess other)
+        {
+            if(Words.Count != other.Words.Count)
+            {
+                return false;
+            }
+
+            for(int i = 0; i < Words.Count; i++)
+            {
+                if(WordsOrdered[i].Item1 != other.WordsOrdered[i].Item1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }

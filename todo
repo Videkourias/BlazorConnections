@@ -1,3 +1,6 @@
 - Remove 'Incorrect' popover notification, replace with wiggle animation instead
 - On correct guess, show animation
 - Save current game progress in cookies?
+
+- Prevent word selection when answers are being revealed
+- Add better error handling for instances when connection cannot be retrieved

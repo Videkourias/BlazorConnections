@@ -9,6 +9,8 @@ public class Connection
     public bool FourWordsSelected => WordList.Count(x => x.IsSelected) >= 4;
     public int Chances { get; set; } = 4;
     public bool HasWon => WordList.Count() == 0 && Chances > 0;
+    public bool HasLost => WordList.Count() > 0 && Chances <= 0;
+    public bool AnySelected => WordList.Any(x => x.IsSelected);
 
     public void ShuffledWordList()
     {
@@ -28,7 +30,7 @@ public class Connection
     {
         var wordGroup = Groups.Where(x => x.Difficulty == diffculty).FirstOrDefault();
 
-        if(wordGroup is null)
+        if(wordGroup is null || wordGroup.Completed)
         {
             return false;
         }
@@ -67,6 +69,18 @@ public class Connection
         connection.ShuffledWordList();
 
         return connection;
+    }
+
+    public string GetCompletionMessage()
+    {
+        return Chances switch
+        {
+            4 => "Perfect",
+            3 => "Great",
+            2 => "Solid",
+            1 => "Phew",
+            _ => "Next Time"
+        };
     }
 
 }

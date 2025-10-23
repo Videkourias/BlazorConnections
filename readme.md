@@ -12,7 +12,7 @@ BlazorConnections is a replica of the NYT Connections daily game built using Bla
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/your-username/BlazorConnections.git
+    git clone https://github.com/Videkourias/BlazorConnections.git
     cd BlazorConnections
     ```
 

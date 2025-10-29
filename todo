@@ -3,4 +3,4 @@
 - Save current game progress in cookies?
 
 - Prevent word selection when answers are being revealed
-- Add better error handling for instances when connection cannot be retrieved
+- Find different API endpoint to retrieve NYT connections data 

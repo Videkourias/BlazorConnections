@@ -125,7 +125,21 @@
         }
         else
         {
-            <MudText>Select a date to play!</MudText>
+            if(IsApiDataBeingRetrieved)
+            {
+                <MudProgressCircular Indeterminate />
+            }
+            else
+            {
+                @if(string.IsNullOrWhiteSpace(ApiExceptionMessage))
+                {
+                    <MudText>Select a date to play!</MudText>
+                }
+                else
+                {
+                    <MudText>NYT Connections API Error: @ApiExceptionMessage</MudText>
+                }
+            }
         }
     </MudContainer>
 </MudPaper>
@@ -188,7 +202,7 @@
 
 @code{
 
-    private Connection Connection { get; set; }
+    private Connection? Connection { get; set; }
     private DateTime? ConnectionDate { get; set; } = DateTime.Now;
     private bool SubmitDisabled = false;
     
@@ -198,6 +212,8 @@
     private bool IsPopoverOpen { get; set; } = false;
     private bool IsFinishedConnectionShown = false; //Used to determine if user is viewing the finished connection after win/lose screen
     private bool IsGameOver = false;
+    private bool IsApiDataBeingRetrieved = false; // Show loader when true
+    private string? ApiExceptionMessage; //Exception message received on attempt to retrieve data from NYT connections API
 
 
 
@@ -215,23 +231,35 @@
 
     private async Task GetConnection()
     {
+        Connection = null;
+        IsApiDataBeingRetrieved = true;
+        StateHasChanged();
+
         if(ConnectionDate is null)
         {
             return;
         }
 
-        //Get game date from date picker, or default to today's date
-        Connection = await _nytService.GetConnection(DateOnly.FromDateTime((DateTime)ConnectionDate));
-
-        if(Connection == null)
+        //Get game date from date picker, or default of today
+        try
         {
-            //FailedToGetConnection = true;
-            return;
+            Connection = await _nytService.GetConnection(DateOnly.FromDateTime((DateTime)ConnectionDate));
         }
+        catch(Exception e)
+        {
+            ApiExceptionMessage = e.Message; // Show error to user. Only show error message.
+        }
+
+        IsApiDataBeingRetrieved = false;
     }
 
     private void SelectWord(string word)
     {
+        if(Connection is null)
+        {
+            return;
+        }
+
         SubmitDisabled = false; //Allow submission again
         
         var selectedWord = Connection.Groups.SelectMany(x => x.Words).FirstOrDefault(x => x.Value == word);
@@ -254,6 +282,10 @@
 
     private void DeselectAll()
     {
+        if(Connection is null)
+        {
+            return;
+        }
         Connection.Groups.SelectMany(x => x.Words).ToList().ForEach(x => x.IsSelected = false);
 
         StateHasChanged();
@@ -261,12 +293,20 @@
 
     private void Shuffle()
     {
+        if(Connection is null)
+        {
+            return;
+        }
         Connection.ShuffledWordList();
         StateHasChanged();
     }
 
     public async void Submit()
     {
+        if(Connection is null)
+        {
+            return;
+        }
         SubmitDisabled = true; //Prevent double submission
 
         var selectedWords = Connection.WordList.Where(x => x.IsSelected);

@@ -14,13 +14,10 @@ public class NYTService : INYTService
 
     public async Task<Connection> GetConnection(DateOnly date)
     {
-        Connection connection = null!;
-
         // Check if the date is within the valid range (June 12, 2023 to tomorrow)
         if(date < new DateOnly(2023, 6, 12) || date > DateOnly.FromDateTime(DateTime.Now.AddDays(1)))
         {
-            _logger.LogWarning("NYT connection date is out of range: {Date}", date);
-            return null;
+            throw new ArgumentException("Selected date is outside valid range for NYT Connections API");
         }
 
         using HttpClient client = _httpClientFactory.CreateClient("NYT");
@@ -29,30 +26,22 @@ public class NYTService : INYTService
             var result = await client.GetAsync($"{date:yyyy-MM-dd}.json");
 
             result.EnsureSuccessStatusCode();
+            
+            string rawConnectionJSON = await result.Content.ReadAsStringAsync();
 
-            var rawConnectionJSON = await result.Content.ReadAsStringAsync();
-
-            if(rawConnectionJSON is null)
+            if(string.IsNullOrWhiteSpace(rawConnectionJSON))
             {
-                _logger.LogError("Failed to read raw Connection JSON from response.");
-                return connection;
+                throw new InvalidOperationException("NYT Connections API response is unexpectedly null or empty");
             }
 
-            NYTConnection? rawConnection = JsonConvert.DeserializeObject<NYTConnection>(rawConnectionJSON);
-
-            if(rawConnection is null)
-            {
-                _logger.LogError("Failed to deserialize raw Connection JSON.");
-                return connection;
-            }
-
-            connection = Connection.FromNYTConnection(rawConnection);
+            // Translate from received api structure into preferred structure for game
+            NYTConnection? rawConnection = JsonConvert.DeserializeObject<NYTConnection>(rawConnectionJSON) ?? throw new InvalidOperationException("NYT Connections API response JSON could not be translated");
+            return Connection.FromNYTConnection(rawConnection);
         }
-        catch(Exception ex)
+        catch(Exception e)
         {
-            _logger.LogError("Error retrieving NYT connections: {Error}", ex);
-        }
-        
-        return connection;
+            _logger.LogError($"NYT Connections API exception: {e}");
+            throw; // Throw exception up to front end can display error to user. 
+        }   
     }
 }

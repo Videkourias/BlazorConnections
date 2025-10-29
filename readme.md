@@ -2,6 +2,8 @@
 
 BlazorConnections is a replica of the NYT Connections daily game built using Blazor and the MudBlazor component library
 
+⚠️Originally used NYT Connections API is no longer available. This app will no longer work until a replacement is found⚠️
+
 ## Features
 
 - **Date Selector**: Navigate to any valid date to play the NYT Connection of that day.

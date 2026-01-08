@@ -15,7 +15,7 @@ builder.Services.AddHttpClient(
     client =>
     {
         // Set the base address of the named client.
-        client.BaseAddress = new Uri("https://www.nytimes.com/svc/connections/v1/");
+        client.BaseAddress = new Uri("https://www.nytimes.com/svc/connections/v2/");
 });
 
 builder.Services.AddSingleton<INYTService, NYTService>();

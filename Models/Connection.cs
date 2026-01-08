@@ -5,7 +5,7 @@ public class Connection
     //Four groups of four words each
     public List<WordGroup> Groups { get; set; }
     //List of words the user has not yet grouped
-    public List<Word> WordList { get; set; }
+    public List<Word> WordList { get; set; } = new();
     public bool FourWordsSelected => WordList.Count(x => x.IsSelected) >= 4;
     public int Chances { get; set; } = 4;
     public bool HasWon => WordList.Count() == 0 && Chances > 0;
@@ -53,18 +53,31 @@ public class Connection
         Connection connection = new Connection
         {
             Id = deserialized.Id,
-            Groups = deserialized.Groups.Select(x => new WordGroup
+            Groups = deserialized.Categories.Select(x => new WordGroup
             {
-                GroupName = x.Key,
-                Difficulty = (Difficulty)x.Value.Level,
-                Words = x.Value.Members.Select(y => new Word
+                GroupName = x.Title,
+                Difficulty = (Difficulty)deserialized.Categories.IndexOf(x),
+                Words = x.Cards.Select(y => new Word
                 {
-                    Value = y,
+                    Value = y.Content,
                     IsSelected = false,
-                    Difficulty = (Difficulty)x.Value.Level
+                    Difficulty = (Difficulty)deserialized.Categories.IndexOf(x)
                 }).ToList()
             }).ToList()
         };
+
+
+        foreach(var category in deserialized.Categories)
+        {
+            foreach(var card in category.Cards)
+            {
+                connection.WordList.Add(new Word
+                {
+                    Value = card.Content,
+                    Difficulty = (Difficulty)deserialized.Categories.IndexOf(category)
+                });
+            }
+        }
 
         connection.ShuffledWordList();
 

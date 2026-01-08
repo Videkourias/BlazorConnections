@@ -5,18 +5,23 @@ public class NYTConnection
     [JsonProperty("id")]
     public int Id { get; set; }
 
-    [JsonProperty("groups")]
-    public Dictionary<string, Group> Groups { get; set; }
+    [JsonProperty("categories")]
+    public List<Category> Categories { get; set; }
 
-    [JsonProperty("startingGroups")]
-    public List<List<string>> StartingGroups { get; set; }
 }
 
-public class Group
+public class Category
 {
-    [JsonProperty("level")]
-    public int Level { get; set; }
+    [JsonProperty("title")]
+    public string Title { get; set; }
 
-    [JsonProperty("members")]
-    public List<string> Members { get; set; }
+    [JsonProperty("cards")]
+    public List<Card> Cards { get; set; }
+}
+
+public record Card
+{
+    [JsonProperty("content")]
+    public string Content { get; set; }
+    
 }

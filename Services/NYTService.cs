@@ -12,7 +12,7 @@ public class NYTService : INYTService
         _logger = logger;
     }
 
-    public async Task<Connection> GetConnection(DateOnly date)
+    public async Task<NYTConnection> GetConnection(DateOnly date)
     {
         // Check if the date is within the valid range (June 12, 2023 to tomorrow)
         if(date < new DateOnly(2023, 6, 12) || date > DateOnly.FromDateTime(DateTime.Now.AddDays(1)))
@@ -36,12 +36,13 @@ public class NYTService : INYTService
 
             // Translate from received api structure into preferred structure for game
             NYTConnection? rawConnection = JsonConvert.DeserializeObject<NYTConnection>(rawConnectionJSON) ?? throw new InvalidOperationException("NYT Connections API response JSON could not be translated");
-            return Connection.FromNYTConnection(rawConnection);
+            return rawConnection;
         }
         catch(Exception e)
         {
             _logger.LogError($"NYT Connections API exception: {e}");
             throw; // Throw exception up to front end can display error to user. 
-        }   
+        }    
     }
+
 }

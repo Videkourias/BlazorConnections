@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using BlazorConnections.Extensions
 @inject INYTService _nytService
 
 <PageTitle>BlazorConnections</PageTitle>
@@ -7,26 +8,44 @@
     <MudContainer Class="pt-2">
         <MudContainer Class="d-flex gap-4 align-center">
             <MudText Class="title">Connections</MudText>
-            <MudDatePicker Label="Game Date" @bind-Date="ConnectionDate" @bind-Date:after="ConnectionDateUpdate" IsDateDisabledFunc="@((DateTime dt)=>(dt < new DateTime(2023, 6, 12) || DateOnly.FromDateTime(dt) > DateOnly.FromDateTime(DateTime.Now.AddDays(1))))"/>
+            <MudDatePicker Label="Game Date" @bind-Date="ConnectionDate" @bind-Date:after="SelectNewDate" IsDateDisabledFunc="@((DateTime dt)=>(dt < new DateTime(2023, 6, 12) || DateOnly.FromDateTime(dt) > DateOnly.FromDateTime(DateTime.Now.AddDays(1))))"/>
         </MudContainer>
     </MudContainer>
     <MudDivider DividerType="DividerType.Middle" Class="my-6"/>
  
     <MudContainer Class="d-flex flex-column justify-start align-center" Style="height: 60%"> 
-        @if(Connection is not null) 
+        @if(Tiles.Count == 0)
         {
-                @if(IsGameOver && !IsFinishedConnectionShown)
+            <MudProgressCircular Indeterminate />
+            if(ErrorFetchingConnection)
+            {
+                <MudText>Error fetching connection. Check logs</MudText>
+            }
+        } 
+        else
+        {
+                @if(IsShowingResults)
                 {
-                    <MudButton Variant="Variant.Text" Class="rounded-pill" OnClick="() => IsFinishedConnectionShown = true" EndIcon="@Icons.Material.Filled.Close" Style="align-self: flex-end;">Back to puzzle</MudButton>
+                    <MudButton Variant="Variant.Text" Class="rounded-pill" OnClick="() => IsShowingResults = false" EndIcon="@Icons.Material.Filled.Close" Style="align-self: flex-end;">Back to puzzle</MudButton>
                     <MudStack>
-                        <MudText Typo="Typo.h1">@Connection.GetCompletionMessage()!</MudText>
+                        <MudText Typo="Typo.h1">@CompletionMessage</MudText>
                         <MudContainer style="max-width: 12em;">
                             <MudGrid Spacing="1" Justify="Justify.Center">
                                 @foreach(var guess in Guesses)
                                 {
-                                    foreach(var word in guess.Words)
+                                    // Reconstruct words of guess (doesn't preserve order)
+                                    List<Difficulty> difficulties = new();
+                                    foreach(var tile in Tiles)
                                     {
-                                        string style = "width: 2em; height:2em; background-color: " + word.Item2 switch
+                                        if((guess & tile.Id) == tile.Id)
+                                        {
+                                            difficulties.Add(tile.Difficulty);
+                                        }
+                                    }
+
+                                    foreach(var difficulty in difficulties)
+                                    {
+                                        string style = "width: 2em; height:2em; background-color: " + difficulty switch
                                         {
                                             Difficulty.Yellow => "rgb(249, 223, 109)",
                                             Difficulty.Green => "rgb(160, 195, 90)",   
@@ -55,9 +74,10 @@
                                 <p>@PopoverMessage</p>
                             </MudPopover>
 
-                            @foreach(var wordGroup in Connection.Groups.Where(x => x.Completed).OrderBy(x => x.TimeCompleted)) //Display already completed groups
+                            @foreach(var difficulty in CompletedDifficulties) //Display already completed groups
                             {
-                                string style = "background-color: " + wordGroup.Difficulty switch
+                                var categoryName = CategoryTitles[difficulty];
+                                string style = "background-color: " + difficulty switch
                                 {
                                     Difficulty.Yellow => "rgb(249, 223, 109)",
                                     Difficulty.Green => "rgb(160, 195, 90)",   
@@ -68,30 +88,24 @@
                                 <MudItem xs="12" Style="height: 8em">
                                     <MudPaper Elevation="0" Class="rounded pa-4 d-flex justify-center align-center wordCard" Style=@style>
                                         <MudStack Spacing="0" AlignItems="AlignItems.Center">
-                                            <MudText Class="correctWordCategory nytArial">@wordGroup.GroupName</MudText>
+                                            <MudText Class="correctWordCategory nytArial">@categoryName</MudText>
                                             <MudStack Row Justify="Justify.Center" Spacing="1">
-                                                @{
-                                                    var lastWord = wordGroup.Words.Last();
-                                                } 
-                                                @foreach(var word in wordGroup.Words)
-                                                {
-                                                    <MudText Class="correctWord nytArial" Style="">@word.Value@(word.Equals(lastWord) ? "" : ",")</MudText>
-                                                }
+                                                <MudText Class="correctWord nytArial" Style="">@string.Join(',', Tiles.Where(x => x.Difficulty == difficulty).Select(x => x.Word).Order())</MudText>
                                             </MudStack>
                                         </MudStack>
                                     </MudPaper>
                                 </MudItem>
                             }
                         
-                            @foreach(var word in Connection.WordList) //Display non-matched words
+                            @foreach(var tile in Tiles.Where(x => !x.Completed)) //Display non-matched words
                             {
                                 string paperClass = "rounded pa-4 d-flex justify-center align-center wordCard" 
-                                                        + (Connection.FourWordsSelected ? (word.IsSelected ? " cursor-pointer" : "") : " cursor-pointer") //Determine if word has pointer cursor on hover
-                                                        + (word.IsSelected ? " selected" : ""); //Determine if word has selected stylings
+                                                        + (MaxTilesSelected ? (tile.Selected ? " cursor-pointer" : "") : " cursor-pointer") //Determine if word has pointer cursor on hover
+                                                        + (tile.Selected ? " selected" : ""); //Determine if word has selected stylings
 
                                 <MudItem xs="3" Style="height: 8em">
-                                    <MudPaper Elevation="0" Class="@paperClass" @onclick="() => SelectWord(word.Value)">
-                                        <MudText Class="noSelect wordCardText nytArial">@word.Value</MudText>
+                                    <MudPaper Elevation="0" Class="@paperClass" @onclick="() => SelectTile(tile)">
+                                        <MudText Class="noSelect wordCardText nytArial">@tile.Word</MudText>
                                     </MudPaper>
                                 </MudItem>
                             }
@@ -101,7 +115,7 @@
                         {
                             <MudContainer Class="d-flex flex-row justify-center align-end gap-1">
                             <MudText>Mistakes Remaining: </MudText>
-                                @for(int i = 0; i < Connection.Chances; i++)
+                                @for(int i = 0; i < RemainingGuesses; i++)
                                 {
                                     <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Dark" Size="Size.Small"></MudIcon>
                                 }
@@ -110,37 +124,19 @@
                         <MudContainer Class="d-flex flex-row justify-center align-start gap-2">
                             @if(IsGameOver)
                             {
-                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="() => IsFinishedConnectionShown = false">View Results</MudButton>
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="@(() => IsShowingResults = true)">View Results</MudButton>
                             }
                             else
                             {
-                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" OnClick="Shuffle">Shuffle</MudButton>
-                                <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll" Disabled="!Connection.AnySelected">Deselect All</MudButton>
-                                <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled="!Connection.FourWordsSelected || SubmitDisabled" OnClick="Submit">Submit</MudButton>
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill mud-border-black" Disabled="IsSubmitting" OnClick="Shuffle">Shuffle</MudButton>
+                                <MudButton Variant="Variant.Outlined" Class="rounded-pill" OnClick="DeselectAll" Disabled="(!AnyTilesSelected || IsGameOver)">Deselect All</MudButton>
+                                <MudButton Variant="Variant.Filled" Class="rounded-pill" Disabled="(!MaxTilesSelected || IsSubmitting || CurrentSelectionAlreadyGuess)" OnClick="Submit">Submit</MudButton>
                             }
                         </MudContainer>  
                     </MudStack>
-                }
-                
+                }    
         }
-        else
-        {
-            if(IsApiDataBeingRetrieved)
-            {
-                <MudProgressCircular Indeterminate />
-            }
-            else
-            {
-                @if(string.IsNullOrWhiteSpace(ApiExceptionMessage))
-                {
-                    <MudText>Select a date to play!</MudText>
-                }
-                else
-                {
-                    <MudText>NYT Connections API Error: @ApiExceptionMessage</MudText>
-                }
-            }
-        }
+
     </MudContainer>
 </MudPaper>
 
@@ -201,146 +197,141 @@
 </style>
 
 @code{
+    private List<Tile> Tiles { get; set; } = new(); 
+    private List<int> Guesses { get; set; } = new();
+    private List<Difficulty> CompletedDifficulties { get; set; } = new();
+    private bool AnyTilesSelected => Tiles.Any(x => x.Selected);
+    private bool MaxTilesSelected => Tiles.Where(x => x.Selected).Count() == 4;
+    private bool IsGameOver => CompletedDifficulties.Count() == 4;
+    private int RemainingGuesses { get; set; } = 4;
+    private bool CurrentSelectionAlreadyGuess { get; set; }
 
-    private Connection? Connection { get; set; }
+
+
     private DateTime? ConnectionDate { get; set; } = DateTime.Now;
-    private bool SubmitDisabled = false;
-    
-    private List<Guess> Guesses { get; set; } = new();
-
     private string PopoverMessage {get; set; } = string.Empty;
-    private bool IsPopoverOpen { get; set; } = false;
-    private bool IsFinishedConnectionShown = false; //Used to determine if user is viewing the finished connection after win/lose screen
-    private bool IsGameOver = false;
-    private bool IsApiDataBeingRetrieved = false; // Show loader when true
-    private string? ApiExceptionMessage; //Exception message received on attempt to retrieve data from NYT connections API
-
-
-
-    //May want to switch to non prerendering, this adds noticeable delay    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private bool IsPopoverOpen { get; set; }
+    private bool IsSubmitting { get; set; }
+    private bool IsShowingResults { get; set; }
+    private Dictionary<Difficulty, string> CategoryTitles { get; set; } = new(); // Mapping of difficulty to title of difficulty
+    private string CompletionMessage => RemainingGuesses switch
     {
-        if(!firstRender)
-        {
-            return;
-        }
+        4 => "Perfect",
+        3 => "Great",
+        2 => "Solid",
+        1 => "Phew",
+        _ => "Next Time"
+    };
+    private bool ErrorFetchingConnection { get; set; }
 
-        await GetConnection();
-        StateHasChanged();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchConnection(DateOnly.FromDateTime(DateTime.Now));
     }
 
-    private async Task GetConnection()
+    private async Task FetchConnection(DateOnly date)
     {
-        Connection = null;
-        IsApiDataBeingRetrieved = true;
-        StateHasChanged();
-
-        if(ConnectionDate is null)
-        {
-            return;
-        }
-
-        //Get game date from date picker, or default of today
+        NYTConnection connection = null!;
         try
         {
-            Connection = await _nytService.GetConnection(DateOnly.FromDateTime((DateTime)ConnectionDate));
+            ErrorFetchingConnection = false;
+            connection = await _nytService.GetConnection(date);
         }
-        catch(Exception e)
+        catch(Exception)
         {
-            ApiExceptionMessage = e.Message; // Show error to user. Only show error message.
+            ErrorFetchingConnection = true;
+            return;
         }
 
-        IsApiDataBeingRetrieved = false;
+        IEnumerable<Card> cards = connection.Categories.SelectMany(x => x.Cards);
+
+        int count = 0;
+        Tiles = cards.Select(x => new Tile
+        {
+            Id = 1 << count++,
+            Word = x.Content,
+            Difficulty = (Difficulty)connection.Categories.IndexOf(connection.Categories.First(y => y.Cards.Contains(x))) // Difficulty based on order of Categories list
+        }).ToList();
+
+        Tiles.Shuffle();
+
+        CategoryTitles = connection.Categories.ToDictionary(x => (Difficulty)connection.Categories.IndexOf(x), x => x.Title);
     }
 
-    private void SelectWord(string word)
+    private async Task SelectNewDate()
     {
-        if(Connection is null)
-        {
-            return;
-        }
-
-        SubmitDisabled = false; //Allow submission again
-        
-        var selectedWord = Connection.Groups.SelectMany(x => x.Words).FirstOrDefault(x => x.Value == word);
-
-        if(selectedWord is null)
-        {
-            return;
-        }
-
-        //Don't allow selection if 4 or more words are already selected and not deselecting (Also don't allow selection if game is over)
-        if(Connection.FourWordsSelected && !selectedWord.IsSelected || IsGameOver)
-        {
-            return;
-        }
-
-        selectedWord.IsSelected = !selectedWord.IsSelected;
-
+        Tiles.Clear();
+        Guesses.Clear();
+        CompletedDifficulties.Clear();
+        RemainingGuesses = 4;
+        IsShowingResults = false;
         StateHasChanged();
+
+        await FetchConnection(DateOnly.FromDateTime(ConnectionDate ?? DateTime.Now));
     }
 
-    private void DeselectAll()
+    private async Task SelectTile(Tile tile)
     {
-        if(Connection is null)
+        CurrentSelectionAlreadyGuess = false; // Can only re-guess after changing options
+
+        //Only allow selection if haven't reached max tile count already and not in game over state. 
+        if((MaxTilesSelected && !tile.Selected) || IsGameOver)
         {
             return;
         }
-        Connection.Groups.SelectMany(x => x.Words).ToList().ForEach(x => x.IsSelected = false);
 
-        StateHasChanged();
+        tile.Selected = !tile.Selected;
     }
 
-    private void Shuffle()
-    {
-        if(Connection is null)
-        {
-            return;
-        }
-        Connection.ShuffledWordList();
-        StateHasChanged();
-    }
+    private void DeselectAll() => Tiles.ForEach(x => x.Selected = false);
+
+    private void Shuffle() => Tiles.Shuffle();
 
     public async void Submit()
     {
-        if(Connection is null)
-        {
-            return;
-        }
-        SubmitDisabled = true; //Prevent double submission
+        IsSubmitting = true;
+        CurrentSelectionAlreadyGuess = true;
+        var selectedTiles = Tiles.Where(x => x.Selected).ToList();
 
-        var selectedWords = Connection.WordList.Where(x => x.IsSelected);
 
-        Guess guess = Guess.FromWords(selectedWords);
+        // Verify if guess has already been guessed.
+        int guess = selectedTiles.Select(x => x.Id).Aggregate((a, b) => a | b);
 
-        //Verify if words have already been guessed
         if(Guesses.Contains(guess))
         {
-            //Show attempted warning
             FlashHint("Already Guessed!");
             return;
         }
 
-        //Add guess to list of guesses for this connection
         Guesses.Add(guess);
 
 
-        if(guess.IsCorrect) 
+        // Show user result of their guess
+        var difficultyCounts = selectedTiles.GroupBy(x => x.Difficulty).Select(x => x.Count());
+        
+        if(difficultyCounts.Any(x => x == 4))
         {
-            Connection.MarkGroupComplete(guess.Difficulty);
+            CompletedDifficulties.Add(selectedTiles.First().Difficulty);
+            selectedTiles.ForEach(x => 
+                {
+                    x.Selected = false;
+                    x.Completed = true;
+                });
 
-            StateHasChanged();
-
-            if(Connection.HasWon)
+            if(IsGameOver)
             {
-                await Task.Delay(2000); //Delay to allow user to see correct guess
-                IsGameOver = true;
-                StateHasChanged();
+                FlashHint(CompletionMessage);
+
+                await Task.Delay(500);
+                
+                IsShowingResults = true; 
             }
 
+            IsSubmitting = false;
             return;
         }
-        else if(guess.IsOneOff)
+        else if(difficultyCounts.Any(x => x == 3))
         {
             FlashHint("One Off!");
         }
@@ -349,33 +340,35 @@
             FlashHint("Incorrect");
         }
 
-        Connection.Chances -= 1;
-        StateHasChanged();
 
+        RemainingGuesses--;
 
-        if(Connection.HasLost)
+        // If game is lost
+        if(RemainingGuesses == 0)
         {
-            await Task.Delay(1000); //Delay to allow user to see incorrect guess
+            await Task.Delay(1000);
 
             //Deselect all words
-            Connection.Groups.SelectMany(x => x.Words).ToList().ForEach(x => x.IsSelected = false);
-            StateHasChanged();
+            Tiles.ForEach(x => x.Selected = false);
 
             //Reveal answers
-            foreach(var difficulty in Connection.Groups.Select(x => x.Difficulty).Distinct().OrderByDescending(x => x))
+            foreach(var difficulty in Tiles.Where(x => !x.Completed).Select(x => x.Difficulty).Distinct().OrderByDescending(x => x))
             {
-                Connection.MarkGroupComplete(difficulty);
+                CompletedDifficulties.Add(difficulty);
+                Tiles.Where(x => x.Difficulty == difficulty).ToList().ForEach(x => x.Completed = true);
                 StateHasChanged();
                 await Task.Delay(2000);
             }
 
-            IsGameOver = true;
+            // Switch to results screen
+            IsShowingResults = true; 
             StateHasChanged();
         }
 
+        IsSubmitting = false;
     }
 
-    async void FlashHint(string hintMessage)
+    private async void FlashHint(string hintMessage)
     {
         PopoverMessage = hintMessage;
         IsPopoverOpen = true;
@@ -387,55 +380,14 @@
 
         StateHasChanged();
     }
-    
 
-    async Task ConnectionDateUpdate()
+
+    internal sealed class Tile
     {
-        Guesses.Clear();
-        IsGameOver = false;
-        IsFinishedConnectionShown = false;
-
-        
-        await GetConnection();
-        StateHasChanged();
-    }
-
-
-    internal sealed class Guess : IEquatable<Guess>
-    {
-        public List<Tuple<string, Difficulty>> Words { get; set; } = new(); //Actual order as guessed by user
-        private List<Tuple<string, Difficulty>> WordsOrdered => Words.OrderBy(x => x.Item1).ToList(); //Guesses sorted alphabetically for comparison
-        public bool IsCorrect => Words.Select(x => x.Item2).Distinct().Count() == 1; //Guess is correct if all words share the same difficulty
-        public bool IsOneOff => Words.GroupBy(x => x.Item2).Any(x => x.Count() == 3); 
-        public Difficulty Difficulty => Words.First().Item2; //Difficulty of the guess is the first word's difficulty
-
-
-        public static Guess FromWords(IEnumerable<Word> words)
-        {
-            var guess = new Guess();
-            foreach(var word in words)
-            {
-                guess.Words.Add(new Tuple<string, Difficulty>(word.Value, word.Difficulty));
-            }
-            return guess;
-        }
-        
-        public bool Equals(Guess other)
-        {
-            if(Words.Count != other.Words.Count)
-            {
-                return false;
-            }
-
-            for(int i = 0; i < Words.Count; i++)
-            {
-                if(WordsOrdered[i].Item1 != other.WordsOrdered[i].Item1)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
+        public int Id { get; init; }
+        public string Word { get; init; } = string.Empty;
+        public Difficulty Difficulty { get; init; }
+        public bool Selected { get; set; }
+        public bool Completed  { get; set; }
     }
 }
